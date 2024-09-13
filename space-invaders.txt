@@ -1,0 +1,223 @@
+(require 2htdp/image)
+(require 2htdp/universe)
+
+;; Space Invaders  
+
+;; =================
+;; Constants:
+
+(define HEIGHT 500)
+(define WIDTH  300)
+(define MTS    (empty-scene WIDTH HEIGHT))
+
+(define TANK-x-SPEED 30)
+(define TANK-HEIGHT 30)
+(define TANK-Y (- HEIGHT (/ TANK-HEIGHT 2)))
+
+(define INVADER-ANGLE-45 315)
+(define INVADER-ANGLE-MINUS-45 225)
+(define INVADER-X-SPEED 30)
+(define INVADER-Y-SPEED 30)
+
+(define FIRE-SPEED 30)
+
+(define TANK (above (rectangle  5 10  "solid" "black")
+                    (rectangle 20  5  "solid" "black")
+                    (ellipse   30 10  "solid" "black")))
+
+(define INVADER (crop
+                 0 0 30 20
+                 (underlay/align "middle" "middle"
+                                 (ellipse   17 30  "outline" "black")
+                                 (ellipse   10 30  "outline" "black")
+                                 (ellipse   30 10  "solid"   "black"))))
+
+(define FIRE-Y 15)
+(define FIRE (ellipse 10 FIRE-Y "solid" "red"))
+
+
+
+;; =================
+;; Data definitions:
+
+;; Tank-X is Integer[0, WIDTH]
+;; interp. tank x position in the MTS
+
+(define T0 0)           ; left edge
+(define T1 (/ WIDTH 2)) ; middle
+(define T2 WIDTH)       ; right edge
+
+(define (fn-for-tank-x tx)
+  (... tx))
+
+(define-struct fire (x y))
+;; Fire (make-fire Number Number)
+;; interp. a fire at position x, y
+
+(define FIRE-1 (make-fire 0 0))
+(define FIRE-2 (make-fire (/ HEIGHT 2) (/ WIDTH 2)))
+(define FIRE-3 (make-fire HEIGHT WIDTH))
+#;
+(define (fn-for-fire f)
+  (... (fire-x f)
+       (fire-y f)))
+
+;; ListOfFire is one of:
+;; - empty
+;; - (cons Fire ListOfFire)
+;; interp. a list of fire
+
+(define LOF-1 empty)
+(define LOF-2 (cons FIRE-1 empty))
+(define LOF-3 (cons FIRE-2 LOF-2))
+#;
+(define (fn-for-lof lof)
+  (cond [(empty? lof) (...)]
+        [ else
+          (... (fn-for-fire(first lof))     ; Fire
+               (fn-for-lof (rest  lof)))]))  ; ListOfFire
+
+(define-struct invader (x y angle))
+;; Invader is (make-invader Number Number Number)
+;; interp. an invader at position x, y and angle angle
+
+(define INVADER-1 (make-invader 0 0 45))
+(define INVADER-2 (make-invader (/ HEIGHT 2) (/ WIDTH 2) -45))
+(define INVADER-3 (make-invader HEIGHT WIDTH 45))
+#;
+(define (fn-for-invader i)
+  (... (invader-x i)(invader-y i)(invader-angle i)))
+
+;; ListOfInvader is one of:
+;; - empty
+;; - (cons Invader ListOfInvader)
+;; interp. a list of invaders
+
+(define LOI-1 empty)
+(define LOI-2 (cons INVADER-1 empty))
+(define LOI-3 (cons INVADER-2 empty))
+
+(define (fn-for-loi loi)
+  (cond [(empty? loi) (...)]
+        [ else
+          (... (fn-for-invader(first loi))      ; Invader
+               (fn-for-loi(rest loi)))]))       ; ListOfInvader
+
+(define-struct game (tx lof loi))
+;; Game is (make-game game)
+;; interp. a game with
+;;                tx:  tank x position on the MTS
+;;                lof: a list for the fire balls at (x,y) on MTS
+;;                loi: a list of invaders at (x,y) postion and angle
+
+(define GAME-1 (make-game T0 LOF-1 LOI-1))
+(define GAME-2 (make-game T1 LOF-2 LOI-2))
+(define GAME-3 (make-game T2 LOF-3 LOI-3))
+#;
+(define (fn-for-game g)
+  (... (game-tx g)(game-lof g)(game-loi g)))
+
+;; =================
+;; Functions:
+
+;; game -> game
+;; start the world with (main (make-game T1 empty empty))
+;; 
+(define (main g)
+  (big-bang g                      ; game
+    (on-tick   next-frame)         ; game -> game
+    (to-draw   render-behaviour)   ; game -> Image
+    (stop-when end-game)           ; game -> Boolean
+    (on-key    handle-key)))       ; game KeyEvent -> game
+
+;; game -> game
+;; produce the next game status -> fire (- FIRE-SPEED), invader positions
+(check-expect (next-frame (make-game (/ WIDTH 2) (cons (make-fire 100 150) empty) (cons (make-invader 100 150 INVADER-ANGLE-45) empty))) (make-game (/ WIDTH 2) (cons (make-fire 100 (- 150 FIRE-SPEED)) empty) (cons (make-invader (+ 100 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45 ) empty)))
+(check-expect (next-frame (make-game 150 (cons (make-fire 50 200) empty) (cons (make-invader 300 3 INVADER-ANGLE-MINUS-45) empty))) (make-game 150 (cons (make-fire 50 (- 200 FIRE-SPEED)) empty) (cons (make-invader (- 100 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45 ) empty)))
+;(define (next-frame g) GAME-1); stub
+
+(define (next-frame g)
+  (make-game (game-tx g) (update-fire(game-lof g))(update-invader(game-loi g))))
+
+
+;; ListOfFire -> ListOfFire
+;; Produce the next list fires (updates postion, remove excess fires)
+(check-expect (update-fire (cons (make-fire 0 0) empty)) (cons (make-fire (- 0 FIRE-SPEED) 0) empty))
+(check-expect (update-fire (cons (make-fire 0 (- 0 (/ FIRE-Y 2))) empty)) empty)
+(check-expect (update-fire (cons (make-fire (/ HEIGHT 2) (/ WIDTH 2)) (cons (make-fire 0 0) empty))) (cons (make-fire (- (/ HEIGHT 2) FIRE-SPEED) (/ WIDTH 2)) (cons (make-fire (- 0 FIRE-SPEED) 0) empty)))
+(check-expect (update-fire (cons (make-fire (/ HEIGHT 2) (/ WIDTH 2)) (cons (make-fire 0 (- 0 FIRE-Y)) empty))) (cons (make-fire (- (/ HEIGHT 2) FIRE-SPEED) (/ WIDTH 2)) empty))
+;(define (update-fire lof) lof); stub
+
+(define (update-fire lof)
+  (onscreen-fire(tick-fires lof)))  ; ListOfFire
+
+;; ListOfFire -> ListOfFire
+;; Update fires in the list by subtracting fire-y by FIRE-SPEED
+(check-expect (tick-fires empty) empty)
+(check-expect (tick-fires (cons (make-fire 0 0) empty)) (cons (make-fire 0 (- 0 FIRE-SPEED)) empty))
+(check-expect (tick-fires (cons (make-fire (/ HEIGHT 2) (/ WIDTH 2)) (cons (make-fire 0 0) empty))) (cons (make-fire (/ HEIGHT 2) (- (/ WIDTH 2) FIRE-SPEED)) (cons (make-fire 0 (- 0 FIRE-SPEED)) empty)))
+;(define (tick-fires lof) lof); stub
+
+(define (tick-fires lof)
+  (cond [(empty? lof) empty]
+        [ else
+          (cons (tick-fire(first lof))     ; Fire
+                (tick-fires (rest  lof)))]))  ; ListOfFire
+
+;; Fire -> Fire
+;; update fire Y position by subtracting FIRE-SPEED
+(check-expect (tick-fire (make-fire   0   0)) (make-fire   0 (-   0 FIRE-SPEED)))
+(check-expect (tick-fire (make-fire 120 300)) (make-fire 120 (- 300 FIRE-SPEED)))
+;(define (tick-fire f) f); stub
+
+(define (tick-fire f)
+  (make-fire (fire-x f) (- (fire-y f) FIRE-SPEED)))
+
+
+;; ListOfFire -> ListOfFire
+;; Remove excess fires from the list (passed the screen)
+(check-expect (onscreen-fire empty) empty)
+(check-expect (onscreen-fire (cons (make-fire 0 0) empty))                  (cons (make-fire 0 0) empty))
+(check-expect (onscreen-fire (cons (make-fire 0 (- 0 (/ FIRE-Y 2))) empty)) empty)
+(check-expect (onscreen-fire (cons (make-fire (/ HEIGHT 2) 200) (cons (make-fire 0 0) empty))) (cons (make-fire (/ HEIGHT 2) 200) (cons (make-fire 0 0) empty)))
+(check-expect (onscreen-fire (cons (make-fire (/ HEIGHT 2) 200) (cons (make-fire 0 (- 0 (/ FIRE-Y 2))) empty))) (cons (make-fire (/ HEIGHT 2) 200) empty))
+;(define (onscreen-fire lof) lof); stub
+
+(define (onscreen-fire lof)
+  (cond [(empty? lof) empty]
+        [ else
+          (if  (onscreen-fire? (first lof))     
+               (cons (first lof) (onscreen-fire (rest  lof)))
+               (onscreen-fire (rest  lof)))])) 
+
+;; Fire -> Boolean
+;; True if fire within screen bounds (0-HEIGHT)
+;; !!!
+(define (onscreen-fire? f) true); stub
+#; 
+(define (update-fire lof)
+  (cond [(empty? lof) empty]
+        [ else
+          (cons (update-x-fire(first lof))     ; Fire
+                (update-fire(rest  lof)))]))  ; ListOfFire
+
+;; ListOfinvader -> ListOfInvder
+;; update the invader position (x, y, angle)
+;; !!!
+(define (update-invader loi) loi); stub
+
+
+;; game -> Image
+;; render tank, fire , invader into x,y position on the MTS
+;; !!!
+(define (render-behaviour g) MTS)
+
+;; game -> boolean
+;; Game over if invader reaches the bottom of the screen
+;; !!!
+(define (end-game g) true); stub
+
+;; game KeyEvent -> game
+;; arrow key - tank moves right and left, space bar fire missiles
+;; !!!
+(define (handle-key g ke) GAME-1); stub
