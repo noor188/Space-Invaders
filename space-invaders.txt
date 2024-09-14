@@ -33,6 +33,7 @@
                                  (ellipse   30 10  "solid"   "black"))))
 
 (define FIRE-Y 15)
+(define FIRE-FALL-OFF (-(/ FIRE-Y 2)))
 (define FIRE (ellipse 10 FIRE-Y "solid" "red"))
 
 
@@ -62,21 +63,6 @@
   (... (fire-x f)
        (fire-y f)))
 
-;; ListOfFire is one of:
-;; - empty
-;; - (cons Fire ListOfFire)
-;; interp. a list of fire
-
-(define LOF-1 empty)
-(define LOF-2 (cons FIRE-1 empty))
-(define LOF-3 (cons FIRE-2 LOF-2))
-#;
-(define (fn-for-lof lof)
-  (cond [(empty? lof) (...)]
-        [ else
-          (... (fn-for-fire(first lof))     ; Fire
-               (fn-for-lof (rest  lof)))]))  ; ListOfFire
-
 (define-struct invader (x y angle))
 ;; Invader is (make-invader Number Number Number)
 ;; interp. an invader at position x, y and angle angle
@@ -103,16 +89,16 @@
           (... (fn-for-invader(first loi))      ; Invader
                (fn-for-loi(rest loi)))]))       ; ListOfInvader
 
-(define-struct game (tx lof loi))
+(define-struct game (tx f loi))
 ;; Game is (make-game game)
 ;; interp. a game with
-;;                tx:  tank x position on the MTS
-;;                lof: a list for the fire balls at (x,y) on MTS
-;;                loi: a list of invaders at (x,y) postion and angle
+;;                tx  :  tank x position on the MTS
+;;                fire: a fire ball at (x,y) on MTS
+;;                loi : a list of invaders at (x,y) postion and angle
 
-(define GAME-1 (make-game T0 LOF-1 LOI-1))
-(define GAME-2 (make-game T1 LOF-2 LOI-2))
-(define GAME-3 (make-game T2 LOF-3 LOI-3))
+(define GAME-1 (make-game T0 FIRE-1 LOI-1))
+(define GAME-2 (make-game T1 FIRE-2 LOI-2))
+(define GAME-3 (make-game T2 FIRE-3 LOI-3))
 #;
 (define (fn-for-game g)
   (... (game-tx g)(game-lof g)(game-loi g)))
@@ -132,37 +118,24 @@
 
 ;; game -> game
 ;; produce the next game status -> fire (- FIRE-SPEED), invader positions
-(check-expect (next-frame (make-game (/ WIDTH 2) (cons (make-fire 100 150) empty) (cons (make-invader 100 150 INVADER-ANGLE-45) empty))) (make-game (/ WIDTH 2) (cons (make-fire 100 (- 150 FIRE-SPEED)) empty) (cons (make-invader (+ 100 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45 ) empty)))
-(check-expect (next-frame (make-game 150 (cons (make-fire 50 200) empty) (cons (make-invader 300 3 INVADER-ANGLE-MINUS-45) empty))) (make-game 150 (cons (make-fire 50 (- 200 FIRE-SPEED)) empty) (cons (make-invader (- 100 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45 ) empty)))
+(check-expect (next-frame (make-game (/ WIDTH 2) (make-fire 100 150) (cons (make-invader 100 150 INVADER-ANGLE-45) empty))) (make-game (/ WIDTH 2) (cons (make-fire 100 (- 150 FIRE-SPEED)) empty) (cons (make-invader (+ 100 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45 ) empty)))
+(check-expect (next-frame (make-game 150 (make-fire 50 200) (cons (make-invader 300 3 INVADER-ANGLE-MINUS-45) empty))) (make-game 150 (cons (make-fire 50 (- 200 FIRE-SPEED)) empty) (cons (make-invader (- 100 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45 ) empty)))
 ;(define (next-frame g) GAME-1); stub
 
 (define (next-frame g)
-  (make-game (game-tx g) (update-fire(game-lof g))(update-invader(game-loi g))))
+  (make-game (game-tx g) (update-fire(game-f g))(update-invader(game-loi g))))
 
 
-;; ListOfFire -> ListOfFire
-;; Produce the next list fires (updates postion, remove excess fires)
-(check-expect (update-fire (cons (make-fire 0 0) empty)) (cons (make-fire (- 0 FIRE-SPEED) 0) empty))
-(check-expect (update-fire (cons (make-fire 0 (- 0 (/ FIRE-Y 2))) empty)) empty)
-(check-expect (update-fire (cons (make-fire (/ HEIGHT 2) (/ WIDTH 2)) (cons (make-fire 0 0) empty))) (cons (make-fire (- (/ HEIGHT 2) FIRE-SPEED) (/ WIDTH 2)) (cons (make-fire (- 0 FIRE-SPEED) 0) empty)))
-(check-expect (update-fire (cons (make-fire (/ HEIGHT 2) (/ WIDTH 2)) (cons (make-fire 0 (- 0 FIRE-Y)) empty))) (cons (make-fire (- (/ HEIGHT 2) FIRE-SPEED) (/ WIDTH 2)) empty))
+;; Fire -> Fire
+;; Produce the next fire (updates postion, remove excess fire)
+(check-expect (update-fire (make-fire 0 0)) (make-fire 0 (- 0 FIRE-SPEED)))
+(check-expect (update-fire (make-fire 0 FIRE-FALL-OFF)) (make-fire 0 (- FIRE-FALL-OFF FIRE-SPEED)))
+(check-expect (update-fire (make-fire 0 (- 1 FIRE-FALL-OFF))) (make-fire 0 (- 1 FIRE-FALL-OFF FIRE-SPEED)))
+(check-expect (update-fire (make-fire (/ WIDTH 2) (/ HEIGHT 2))) (make-fire (/ WIDTH 2) (- (/ HEIGHT 2) FIRE-SPEED)))
 ;(define (update-fire lof) lof); stub
 
-(define (update-fire lof)
-  (onscreen-fire(tick-fires lof)))  ; ListOfFire
-
-;; ListOfFire -> ListOfFire
-;; Update fires in the list by subtracting fire-y by FIRE-SPEED
-(check-expect (tick-fires empty) empty)
-(check-expect (tick-fires (cons (make-fire 0 0) empty)) (cons (make-fire 0 (- 0 FIRE-SPEED)) empty))
-(check-expect (tick-fires (cons (make-fire (/ HEIGHT 2) (/ WIDTH 2)) (cons (make-fire 0 0) empty))) (cons (make-fire (/ HEIGHT 2) (- (/ WIDTH 2) FIRE-SPEED)) (cons (make-fire 0 (- 0 FIRE-SPEED)) empty)))
-;(define (tick-fires lof) lof); stub
-
-(define (tick-fires lof)
-  (cond [(empty? lof) empty]
-        [ else
-          (cons (tick-fire(first lof))     ; Fire
-                (tick-fires (rest  lof)))]))  ; ListOfFire
+(define (update-fire f)
+  (tick-fire f))  ; ListOfFire
 
 ;; Fire -> Fire
 ;; update fire Y position by subtracting FIRE-SPEED
@@ -173,27 +146,18 @@
 (define (tick-fire f)
   (make-fire (fire-x f) (- (fire-y f) FIRE-SPEED)))
 
+;; Fire -> Fire
+;; Fire if fire within screen bounds (0-HEIGHT), ow empty
+(check-expect (onscreen-fire? (make-fire 0 FIRE-FALL-OFF))       false)
+(check-expect (onscreen-fire? (make-fire 0 (+ FIRE-FALL-OFF 1))) true)
+(check-expect (onscreen-fire? (make-fire 0 (- FIRE-FALL-OFF 1))) false)
+(check-expect (onscreen-fire? (make-fire 0 (/ HEIGHT 2))) true)
+;(define (onscreen-fire? f) true); stub
 
-;; ListOfFire -> ListOfFire
-;; Remove excess fires from the list (passed the screen)
-(check-expect (onscreen-fire empty) empty)
-(check-expect (onscreen-fire (cons (make-fire 0 0) empty))                  (cons (make-fire 0 0) empty))
-(check-expect (onscreen-fire (cons (make-fire 0 (- 0 (/ FIRE-Y 2))) empty)) empty)
-(check-expect (onscreen-fire (cons (make-fire (/ HEIGHT 2) 200) (cons (make-fire 0 0) empty))) (cons (make-fire (/ HEIGHT 2) 200) (cons (make-fire 0 0) empty)))
-(check-expect (onscreen-fire (cons (make-fire (/ HEIGHT 2) 200) (cons (make-fire 0 (- 0 (/ FIRE-Y 2))) empty))) (cons (make-fire (/ HEIGHT 2) 200) empty))
-;(define (onscreen-fire lof) lof); stub
+(define (onscreen-fire? f)
+  (> (fire-y f) FIRE-FALL-OFF))
 
-(define (onscreen-fire lof)
-  (cond [(empty? lof) empty]
-        [ else
-          (if  (onscreen-fire? (first lof))     
-               (cons (first lof) (onscreen-fire (rest  lof)))
-               (onscreen-fire (rest  lof)))])) 
 
-;; Fire -> Boolean
-;; True if fire within screen bounds (0-HEIGHT)
-;; !!!
-(define (onscreen-fire? f) true); stub
 #; 
 (define (update-fire lof)
   (cond [(empty? lof) empty]
