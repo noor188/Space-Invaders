@@ -154,8 +154,8 @@
 (check-expect (onscreen-fire? (make-fire 0 (/ HEIGHT 2))) true)
 ;(define (onscreen-fire? f) true); stub
 
-(define (onscreen-fire? f)
-  (> (fire-y f) FIRE-FALL-OFF))
+(define (onscreen-fire? f)    
+  (> (fire-y f)  FIRE-FALL-OFF))
 
 
 #; 
