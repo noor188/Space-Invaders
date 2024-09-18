@@ -1,3 +1,6 @@
+;; The first three lines of this file were inserted by DrRacket. They record metadata
+;; about the language level of this file in a form that our tools can easily process.
+#reader(lib "htdp-beginner-reader.ss" "lang")((modname space-invaders) (read-case-sensitive #t) (teachpacks ()) (htdp-settings #(#t constructor repeating-decimal #f #t none #f () #f)))
 (require 2htdp/image)
 (require 2htdp/universe)
 
@@ -18,6 +21,9 @@
 (define INVADER-ANGLE-MINUS-45 225)
 (define INVADER-X-SPEED 30)
 (define INVADER-Y-SPEED 30)
+(define INVADER-X-BOUNCE 15)
+(define INVADER-BOUNCE-RIGHT (- WIDTH INVADER-X-BOUNCE))
+(define INVADER-BOUNCE-LEFT  INVADER-X-BOUNCE)
 
 (define FIRE-SPEED 30)
 
@@ -28,13 +34,14 @@
 (define INVADER (crop
                  0 0 30 20
                  (underlay/align "middle" "middle"
-                                 (ellipse   17 30  "outline" "black")
-                                 (ellipse   10 30  "outline" "black")
-                                 (ellipse   30 10  "solid"   "black"))))
+                                 (ellipse   17 (* INVADER-X-BOUNCE 2)  "outline" "black")
+                                 (ellipse   10 (* INVADER-X-BOUNCE 2)  "outline" "black")
+                                 (ellipse   (* INVADER-X-BOUNCE 2) 10  "solid"   "black"))))
 
 (define FIRE-Y 15)
 (define FIRE-FALL-OFF (-(/ FIRE-Y 2)))
 (define FIRE (ellipse 10 FIRE-Y "solid" "red"))
+
 
 
 
@@ -179,8 +186,8 @@
 (check-expect (update-invaders (cons (make-invader HEIGHT WIDTH INVADER-ANGLE-MINUS-45) (cons (make-invader 0 0 INVADER-ANGLE-45) empty))) (cons (make-invader (+ HEIGHT INVADER-X-SPEED) (+ WIDTH INVADER-Y-SPEED) INVADER-ANGLE-45) (cons (make-invader (- 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty))); -45 45 -> 45 -45
 
 (check-expect (update-invaders (cons (make-invader HEIGHT WIDTH INVADER-ANGLE-MINUS-45) (cons (make-invader 0 0 INVADER-ANGLE-MINUS-45) empty))) (cons (make-invader (- HEIGHT INVADER-X-SPEED) (+ WIDTH INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty))); -45 -45 -> -45 45
-(check-expect (update-invaders (cons (make-invader HEIGHT WIDTH INVADER-ANGLE-45) (cons (make-invader 0 0 INVADER-ANGLE-45) empty))) (cons (make-invader (+ HEIGHT INVADER-X-SPEED) (+ WIDTH INVADER-Y-SPEED) INVADER-ANGLE-45)       (cons (make-invader (- 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty)));  45 45 -> 45 -45
-(check-expect (update-invaders (cons (make-invader HEIGHT WIDTH INVADER-ANGLE-45) (cons (make-invader 0 0 INVADER-ANGLE-45) empty))) (cons (make-invader (- HEIGHT INVADER-X-SPEED) (+ WIDTH INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty))); 45 45 -> -45 45
+(check-expect (update-invaders (cons (make-invader HEIGHT WIDTH INVADER-ANGLE-45      ) (cons (make-invader 0 0 INVADER-ANGLE-45) empty))) (cons (make-invader (+ HEIGHT INVADER-X-SPEED) (+ WIDTH INVADER-Y-SPEED) INVADER-ANGLE-45)       (cons (make-invader (- 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty)));  45 45 -> 45 -45
+(check-expect (update-invaders (cons (make-invader HEIGHT WIDTH INVADER-ANGLE-45      ) (cons (make-invader 0 0 INVADER-ANGLE-45) empty))) (cons (make-invader (- HEIGHT INVADER-X-SPEED) (+ WIDTH INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty))); 45 45 -> -45 45
 (check-expect (update-invaders (cons (make-invader HEIGHT WIDTH INVADER-ANGLE-MINUS-45) (cons (make-invader 0 0 INVADER-ANGLE-45) empty))) (cons (make-invader (+ HEIGHT INVADER-X-SPEED) (+ WIDTH INVADER-Y-SPEED) INVADER-ANGLE-45) (cons (make-invader (- 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty))); -45 -45 -> 45 -45
 
 ;(define (update-invaders loi) loi); stub
@@ -193,8 +200,24 @@
 
 ;; Invader -> Invader
 ;; update invader x,y,angle values -> INVADER-X-SPEED, INVADER-Y-SPEED, INVADER-ANGLE-45 or INVADER-ANGLE-MINUS-45
+(check-expect (update-invader (make-invader (- INVADER-BOUNCE-RIGHT 4) 0 INVADER-ANGLE-45))                  (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45)) ; 45 
+(check-expect (update-invader (make-invader INVADER-BOUNCE-RIGHT (/ HEIGHT 2) INVADER-ANGLE-45))             (make-invader (- INVADER-BOUNCE-RIGHT INVADER-X-SPEED) (+ (/ HEIGHT 2) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45)) ; 45 -> -45
+(check-expect (update-invader (make-invader INVADER-BOUNCE-LEFT (/ HEIGHT 2) INVADER-ANGLE-MINUS-45))        (make-invader (+ INVADER-BOUNCE-LEFT INVADER-X-SPEED) (+ (/ HEIGHT 2) INVADER-Y-SPEED) INVADER-ANGLE-45)); -45 -> 45
+(check-expect (update-invader (make-invader (+ INVADER-BOUNCE-LEFT 10) (/ HEIGHT 2) INVADER-ANGLE-MINUS-45)) (make-invader (- (+ INVADER-BOUNCE-LEFT 10) INVADER-X-SPEED) (+ (/ HEIGHT 2) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45)); -45 -> -45 
+;(define (update-invader i) i); stub
+
+(define (update-invader i)
+  (update-x-y(update_angle i)))
+
+;; invader -> invader
+;; update invader angle, if invader bounces off the edges flip angle sign else keep angle
 ;; !!!
-(define (update-invader i) i); stub
+(define (update_angle i) i);stub
+
+;; invader -> invader
+;; update x,y position of invader, by adding INVADER-Y-SPEED to y and for x it depends on the angle (add/sub INVADER-X-SPEED)
+;; !!!
+(define (update-x-y i) i); stub
 
 ;; game -> Image
 ;; render tank, fire , invader into x,y position on the MTS
