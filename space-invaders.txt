@@ -26,6 +26,7 @@
 (define INVADER-X-BOUNCE 15)
 (define INVADER-BOUNCE-RIGHT (- WIDTH INVADER-X-BOUNCE))
 (define INVADER-BOUNCE-LEFT  INVADER-X-BOUNCE)
+(define INVADER-REACHES-BOTTOM (- HEIGHT INVADER-X-BOUNCE))
 
 (define FIRE-SPEED 30)
 
@@ -355,9 +356,50 @@
                scene))
 
 ;; game -> boolean
-;; Game over if invader reaches the bottom of the screen
-;; !!!
-(define (end-game g) true); stub
+;; Game over if invader reaches the bottom of the screen, or palyer eliminated all invaders
+(check-expect (end-game (make-game (make-tank 0 TANK-Y) (make-fire 0 0) empty)) true)
+(check-expect (end-game (make-game T0 (make-fire 0 0) (cons (make-invader 0 INVADER-REACHES-BOTTOM INVADER-ANGLE-45) (cons (make-invader 0 (- HEIGHT 100) INVADER-ANGLE-MINUS-45) empty)))) true)
+(check-expect (end-game (make-game T0 (make-fire 0 0) (cons (make-invader 0 0 INVADER-ANGLE-45) (cons (make-invader 0 (- HEIGHT 100) INVADER-ANGLE-MINUS-45) (cons (make-invader (- WIDTH 100) (- HEIGHT 200) INVADER-ANGLE-MINUS-45) empty))))) false)
+;(define (end-game g) true); stub
+
+(define (end-game g)
+  (or (invader-reached-bottom (game-loi g)) (eliminate-all-invaders (game-loi g))))
+
+;; ListOfInvader -> Boolean 
+;; True if at least on invader reached the bottom of the screen (invader-Y == INVADER-REACHES-BOTTOM)
+(check-expect (invader-reached-bottom empty) false)
+(check-expect (invader-reached-bottom (cons (make-invader 0 0 INVADER-ANGLE-45) (cons (make-invader 0 (- HEIGHT 100) INVADER-ANGLE-MINUS-45) empty))) false)
+(check-expect (invader-reached-bottom (cons (make-invader (- WIDTH 21) (- HEIGHT 200) INVADER-ANGLE-45) (cons (make-invader 0 (- HEIGHT 100) INVADER-ANGLE-MINUS-45) (cons (make-invader (- WIDTH 3) (- HEIGHT 30) INVADER-ANGLE-45) (cons (make-invader (- WIDTH 20) (- HEIGHT 60) INVADER-ANGLE-MINUS-45) empty))))) false)
+(check-expect (invader-reached-bottom (cons (make-invader 0 (- HEIGHT 100) INVADER-ANGLE-45) (cons (make-invader 0  INVADER-REACHES-BOTTOM INVADER-ANGLE-MINUS-45) empty))) true)
+(check-expect (invader-reached-bottom (cons (make-invader 0 INVADER-REACHES-BOTTOM INVADER-ANGLE-45) (cons (make-invader 0 (- HEIGHT 100) INVADER-ANGLE-MINUS-45) (cons (make-invader (- WIDTH 3) INVADER-REACHES-BOTTOM INVADER-ANGLE-45) (cons (make-invader (- WIDTH 20) (- HEIGHT 60) INVADER-ANGLE-MINUS-45) empty))))) true)
+;(define (invader-reached-bottom loi) true); stub
+
+(define (invader-reached-bottom loi)
+  (cond [(empty? loi) false]
+        [ else
+          (if  (bottom-invader? (first loi))
+               true
+               (invader-reached-bottom(rest loi)))]))       ; ListOfInvader
+
+;; Invader -> Boolean
+;; true if invader-y == INVADER-REACHES-BOTTOM
+(check-expect (bottom-invader? (make-invader 0 INVADER-REACHES-BOTTOM INVADER-ANGLE-45)) true)
+(check-expect (bottom-invader? (make-invader (- WIDTH 30) (- HEIGHT 100) INVADER-ANGLE-45)) false)
+;(define (bottom-invader? i) true); stub
+
+(define (bottom-invader? i)
+  (= (invader-y i) INVADER-REACHES-BOTTOM))
+
+
+;; ListOfInvader -> Boolean
+;; True if loi is empty (Player eliminated all invaders)
+(check-expect (eliminate-all-invaders empty) true)
+(check-expect (eliminate-all-invaders (cons (make-invader 0 (- HEIGHT 100) INVADER-ANGLE-45) (cons (make-invader 0  INVADER-REACHES-BOTTOM INVADER-ANGLE-MINUS-45) empty))) false)
+;(define (eliminate-all-invaders loi) true); stub
+
+(define (eliminate-all-invaders loi)
+  (cond [(empty? loi) true]
+        [ else       false]))       ; ListOfInvader
 
 ;; game KeyEvent -> game
 ;; arrow key - tank moves right and left, space bar fire missiles
