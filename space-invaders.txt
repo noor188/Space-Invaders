@@ -21,14 +21,14 @@
 
 (define INVADER-ANGLE-45 315)
 (define INVADER-ANGLE-MINUS-45 225)
-(define INVADER-X-SPEED 30)
-(define INVADER-Y-SPEED 30)
+(define INVADER-X-SPEED 1)
+(define INVADER-Y-SPEED 1)
 (define INVADER-X-BOUNCE 15)
 (define INVADER-BOUNCE-RIGHT (- WIDTH INVADER-X-BOUNCE))
 (define INVADER-BOUNCE-LEFT  INVADER-X-BOUNCE)
 (define INVADER-REACHES-BOTTOM (- HEIGHT INVADER-X-BOUNCE))
 
-(define FIRE-SPEED 30)
+(define FIRE-SPEED 5)
 
 (define TANK (above (rectangle  5 10  "solid" "black")
                     (rectangle 20  5  "solid" "black")
@@ -42,9 +42,11 @@
                                  (ellipse   10 (* INVADER-X-BOUNCE 2)  "outline" "black")
                                  (ellipse   (* INVADER-X-BOUNCE 2) 10  "solid"   "black"))))
 
-(define FIRE-Y 15)
-(define FIRE-FALL-OFF (-(/ FIRE-Y 2)))
-(define FIRE (ellipse 10 FIRE-Y "solid" "red"))
+
+(define FIRE-HEIGHT 15)
+(define FIRE-FALL-OFF (-(/ FIRE-HEIGHT 2)))
+(define FIRE (ellipse 10 FIRE-HEIGHT "solid" "red"))
+(define FIRE-Y (- HEIGHT TANK-HEIGHT))
 
 
 
@@ -52,29 +54,48 @@
 ;; =================
 ;; Data definitions:
 
-(define-struct tank (x y))
-;; Tank is (make-tank Number Number)
-;; interp. tank at position x,y in the MTS
+;; Direction is one of:
+;; -  1
+;; - -1
+;; interp. the direction of an object,
+;;      1 : to the right
+;;     -1 : to the left
+#;
+(define (fn-for-direction d)
+  (cond [(= d 1 ) (...)]
+        [(= d -1) (...)]))
 
-(define T0 (make-tank 0 TANK-Y))                    ; left edge
-(define T1 (make-tank (/ WIDTH 2) TANK-Y)) ; middle
-(define T2 (make-tank WIDTH TANK-Y))           ; right edge
+(define-struct tank (x y dir))
+;; Tank is (make-tank Number Number Direction)
+;; interp. tank at position x,y and direction d in the MTS
+
+(define T0 (make-tank 0 TANK-Y 1))                    ; left edge
+(define T1 (make-tank (/ WIDTH 2) TANK-Y -1)) ; middle
+(define T2 (make-tank WIDTH TANK-Y 1))           ; right edge
 #;
 (define (fn-for-tank t)
-  (... (tank-x t)
-       (tank-y t)))
+  (... (tank-x   t)
+       (tank-y   t)
+       (tank-dir t)))
 
 (define-struct fire (x y))
-;; Fire (make-fire Number Number)
-;; interp. a fire at position x, y
+;; Fire is one of
+;; - empty
+;; - (make-fire Number Number)
+;; interp. a fire that either
+;;         empty     : no fire in the game
+;;         make-fire : one fire in the game
 
+(define FIRE-0 empty)
 (define FIRE-1 (make-fire 0 0))
 (define FIRE-2 (make-fire (/ WIDTH 2) (/ HEIGHT 2)))
 (define FIRE-3 (make-fire WIDTH HEIGHT))
-#;
+
 (define (fn-for-fire f)
-  (... (fire-x f)
-       (fire-y f)))
+  (cond [(empty? f) (...)]
+        [else
+         (... (fire-x f)
+              (fire-y f))]))
 
 (define-struct invader (x y angle))
 ;; Invader is (make-invader Number Number Number)
@@ -94,7 +115,7 @@
 
 (define LOI-1 empty)
 (define LOI-2 (cons INVADER-1 empty))
-(define LOI-3 (cons INVADER-2 empty))
+(define LOI-3 (cons INVADER-2 (cons INVADER-1 empty)))
 #;
 (define (fn-for-loi loi)
   (cond [(empty? loi) (...)]
@@ -131,8 +152,8 @@
 
 ;; game -> game
 ;; produce the next game status -> fire (- FIRE-SPEED), invader positions
-(check-expect (next-frame (make-game (/ WIDTH 2) (make-fire 100 150) (cons (make-invader 100 150 INVADER-ANGLE-45) empty))) (make-game (/ WIDTH 2) (cons (make-fire 100 (- 150 FIRE-SPEED)) empty) (cons (make-invader (+ 100 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45 ) empty)))
-(check-expect (next-frame (make-game 150 (make-fire 50 200) (cons (make-invader 300 3 INVADER-ANGLE-MINUS-45) empty))) (make-game 150 (cons (make-fire 50 (- 200 FIRE-SPEED)) empty) (cons (make-invader (- 100 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45 ) empty)))
+(check-expect (next-frame (make-game (make-tank (/ WIDTH 2) 0 1) (make-fire 100 150) (cons (make-invader 100 150 INVADER-ANGLE-45) empty)))  (make-game (make-tank (/ WIDTH 2) 0 1) (make-fire 100 (- 150 FIRE-SPEED)) (cons (make-invader (+ 100 INVADER-X-SPEED) (+ 150 INVADER-Y-SPEED) INVADER-ANGLE-45 ) empty)))
+(check-expect (next-frame (make-game (make-tank 0 150 -1) (make-fire 50 200) (cons (make-invader 300 3 INVADER-ANGLE-45) empty)))            (make-game (make-tank 0 150 -1)       (make-fire 50  (- 200 FIRE-SPEED)) (cons (make-invader  (- 300 INVADER-X-SPEED) (+ 3 INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45 ) empty)))
 ;(define (next-frame g) GAME-1); stub
 
 (define (next-frame g)
@@ -157,7 +178,9 @@
 ;(define (tick-fire f) f); stub
 
 (define (tick-fire f)
-  (make-fire (fire-x f) (- (fire-y f) FIRE-SPEED)))
+  ( if (empty? f)
+       empty
+       (make-fire (fire-x f) (- (fire-y f) FIRE-SPEED))))
 
 ;; Fire -> Fire
 ;; Fire if fire within screen bounds (0-HEIGHT), ow empty
@@ -182,19 +205,17 @@
 ;; update the invader position (x, y, angle)
 (check-expect (update-invaders empty) empty)
 (check-expect (update-invaders (cons (make-invader 0 0 INVADER-ANGLE-45) empty)) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty)) ; 45 45
-(check-expect (update-invaders (cons (make-invader 0 0 INVADER-ANGLE-45) empty)) (cons (make-invader (- 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty)) ; 45 -45
-(check-expect (update-invaders (cons (make-invader 0 0 INVADER-ANGLE-MINUS-45) empty)) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty)) ; -45 45
-(check-expect (update-invaders (cons (make-invader 0 0 INVADER-ANGLE-MINUS-45) empty)) (cons (make-invader (- 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty)) ; -45 -45
+(check-expect (update-invaders (cons (make-invader (- WIDTH 100) (- HEIGHT 100) INVADER-ANGLE-MINUS-45) empty)) (cons (make-invader (- (- WIDTH 100) INVADER-X-SPEED) (+ (- HEIGHT 100) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty)) ; -45 -45
 
-(check-expect (update-invaders (cons (make-invader HEIGHT WIDTH INVADER-ANGLE-45) (cons (make-invader 0 0 INVADER-ANGLE-45) empty))) (cons (make-invader (+ HEIGHT INVADER-X-SPEED) (+ WIDTH INVADER-Y-SPEED) INVADER-ANGLE-45) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty))); 45 45 -> 45 45
-(check-expect (update-invaders (cons (make-invader HEIGHT WIDTH INVADER-ANGLE-MINUS-45) (cons (make-invader 0 0 INVADER-ANGLE-MINUS-45) empty))) (cons (make-invader (- HEIGHT INVADER-X-SPEED) (+ WIDTH INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) (cons (make-invader (- 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty))); -45 -45 -> -45 -45
-(check-expect (update-invaders (cons (make-invader HEIGHT WIDTH INVADER-ANGLE-45) (cons (make-invader 0 0 INVADER-ANGLE-MINUS-45) empty))) (cons (make-invader (- HEIGHT INVADER-X-SPEED) (+ WIDTH INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty))); 45 -45 -> -45 45
-(check-expect (update-invaders (cons (make-invader HEIGHT WIDTH INVADER-ANGLE-MINUS-45) (cons (make-invader 0 0 INVADER-ANGLE-45) empty))) (cons (make-invader (+ HEIGHT INVADER-X-SPEED) (+ WIDTH INVADER-Y-SPEED) INVADER-ANGLE-45) (cons (make-invader (- 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty))); -45 45 -> 45 -45
+(check-expect (update-invaders (cons (make-invader (- WIDTH 30) (- HEIGHT 40) INVADER-ANGLE-45) (cons (make-invader 0 0 INVADER-ANGLE-45) empty))) (cons (make-invader (+ (- WIDTH 30) INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-45) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty))); 45 45 -> 45 45
+(check-expect (update-invaders (cons (make-invader (- WIDTH 30) (- HEIGHT 40) INVADER-ANGLE-MINUS-45) (cons (make-invader (- WIDTH 10) (- HEIGHT 10) INVADER-ANGLE-MINUS-45) empty))) (cons (make-invader (- (- WIDTH 30) INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) (cons (make-invader (- (- WIDTH 10)  INVADER-X-SPEED) (+ (- HEIGHT 10) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty))); -45 -45 -> -45 -45
+(check-expect (update-invaders (cons (make-invader INVADER-BOUNCE-RIGHT (- HEIGHT 40) INVADER-ANGLE-45) (cons (make-invader 0 0 INVADER-ANGLE-45) empty))) (cons (make-invader (- INVADER-BOUNCE-RIGHT INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty))); 45 -45 -> -45 45
+(check-expect (update-invaders (cons (make-invader INVADER-BOUNCE-LEFT  (- HEIGHT 40)  INVADER-ANGLE-MINUS-45) (cons (make-invader 0 0 INVADER-ANGLE-45) empty))) (cons (make-invader (+ INVADER-BOUNCE-LEFT INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-45) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty))); -45 45 -> 45 -45
 
-(check-expect (update-invaders (cons (make-invader HEIGHT WIDTH INVADER-ANGLE-MINUS-45) (cons (make-invader 0 0 INVADER-ANGLE-MINUS-45) empty))) (cons (make-invader (- HEIGHT INVADER-X-SPEED) (+ WIDTH INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty))); -45 -45 -> -45 45
-(check-expect (update-invaders (cons (make-invader HEIGHT WIDTH INVADER-ANGLE-45      ) (cons (make-invader 0 0 INVADER-ANGLE-45) empty))) (cons (make-invader (+ HEIGHT INVADER-X-SPEED) (+ WIDTH INVADER-Y-SPEED) INVADER-ANGLE-45)       (cons (make-invader (- 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty)));  45 45 -> 45 -45
-(check-expect (update-invaders (cons (make-invader HEIGHT WIDTH INVADER-ANGLE-45      ) (cons (make-invader 0 0 INVADER-ANGLE-45) empty))) (cons (make-invader (- HEIGHT INVADER-X-SPEED) (+ WIDTH INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty))); 45 45 -> -45 45
-(check-expect (update-invaders (cons (make-invader HEIGHT WIDTH INVADER-ANGLE-MINUS-45) (cons (make-invader 0 0 INVADER-ANGLE-45) empty))) (cons (make-invader (+ HEIGHT INVADER-X-SPEED) (+ WIDTH INVADER-Y-SPEED) INVADER-ANGLE-45) (cons (make-invader (- 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty))); -45 -45 -> 45 -45
+(check-expect (update-invaders (cons (make-invader (- WIDTH 30) (- HEIGHT 40) INVADER-ANGLE-MINUS-45) (cons (make-invader INVADER-BOUNCE-LEFT (- HEIGHT 10) INVADER-ANGLE-MINUS-45) empty))) (cons (make-invader (- (- WIDTH 30) INVADER-X-SPEED) (+ (- HEIGHT 40)  INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) (cons (make-invader (+ INVADER-BOUNCE-LEFT INVADER-X-SPEED) (+ (- HEIGHT 10) INVADER-Y-SPEED) INVADER-ANGLE-45) empty))); -45 -45 -> -45 45
+(check-expect (update-invaders (cons (make-invader (- WIDTH 30) (- HEIGHT 40) INVADER-ANGLE-45      ) (cons (make-invader INVADER-BOUNCE-RIGHT(- HEIGHT 10) INVADER-ANGLE-45) empty))) (cons (make-invader (+ (- WIDTH 30) INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-45)       (cons (make-invader (- INVADER-BOUNCE-RIGHT INVADER-X-SPEED) (+ (- HEIGHT 10) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty)));  45 45 -> 45 -45
+(check-expect (update-invaders (cons (make-invader INVADER-BOUNCE-RIGHT (- HEIGHT 40) INVADER-ANGLE-45) (cons (make-invader (- WIDTH 30)(- HEIGHT 40) INVADER-ANGLE-45) empty))) (cons (make-invader (- INVADER-BOUNCE-RIGHT INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) (cons (make-invader (+ (- WIDTH 30) INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-45) empty))); 45 45 -> -45 45
+(check-expect (update-invaders (cons (make-invader INVADER-BOUNCE-LEFT (- HEIGHT 40) INVADER-ANGLE-MINUS-45) (cons (make-invader (- WIDTH 30) (- HEIGHT 40) INVADER-ANGLE-MINUS-45) empty))) (cons (make-invader (+ INVADER-BOUNCE-LEFT INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-45) (cons (make-invader (- (- WIDTH 30)INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty))); -45 -45 -> 45 -45
 
 ;(define (update-invaders loi) loi); stub
 
@@ -241,45 +262,45 @@
 
 ;; game -> Image
 ;; render tank, fire , invader into x,y position on the MTS
-(check-expect (render-behaviour (make-game (make-tank (/ WIDTH 2) TANK-Y) (make-fire (/ WIDTH 2) (- HEIGHT 60)) (cons (make-invader (- WIDTH 100) (- HEIGHT 200) INVADER-ANGLE-45 ) (cons (make-invader (- WIDTH 200) (- HEIGHT 100)  INVADER-ANGLE-45 ) (cons (make-invader (- WIDTH 150) (- HEIGHT 250)  INVADER-ANGLE-MINUS-45 ) empty))))) (place-image
-                                                                                                                                                                                                                                                                                                                                                                TANK
-                                                                                                                                                                                                                                                                                                                                                                (/ WIDTH 2) (- HEIGHT TANK-BOTTOM)
-                                                                                                                                                                                                                                                                                                                                                                (place-image
-                                                                                                                                                                                                                                                                                                                                                                 FIRE
-                                                                                                                                                                                                                                                                                                                                                                 (/ WIDTH 2) (- HEIGHT 60)
-                                                                                                                                                                                                                                                                                                                                                                 (place-image
-                                                                                                                                                                                                                                                                                                                                                                  INVADER
-                                                                                                                                                                                                                                                                                                                                                                  (- WIDTH 100) (- HEIGHT 200)
-                                                                                                                                                                                                                                                                                                                                                                  (place-image
-                                                                                                                                                                                                                                                                                                                                                                   INVADER
-                                                                                                                                                                                                                                                                                                                                                                   (- WIDTH 200) (- HEIGHT 100)
-                                                                                                                                                                                                                                                                                                                                                                   (place-image
-                                                                                                                                                                                                                                                                                                                                                                    INVADER
-                                                                                                                                                                                                                                                                                                                                                                    (- WIDTH 150) (- HEIGHT 250)
-                                                                                                                                                                                                                                                                                                                                                                    MTS
-                                                                                                                                                                                                                                                                                                                                                                    )
-                                                                                                                                                                                                                                                                                                                                                                   )
-                                                                                                                                                                                                                                                                                                                                                                  ))
-                                                                                                                                                                                                                                                                                                                                                                ))
-(check-expect (render-behaviour (make-game (make-tank (- WIDTH 100) (- HEIGHT TANK-BOTTOM)) (make-fire (- WIDTH 100) (- HEIGHT 300)) (cons (make-invader (- WIDTH 100) (- HEIGHT 100) INVADER-ANGLE-45 ) (cons (make-invader (- WIDTH 150) (- HEIGHT 110)  INVADER-ANGLE-45 ) (cons (make-invader (- WIDTH 120) (- HEIGHT 190)  INVADER-ANGLE-MINUS-45 ) empty))))) (place-image
-                                                                                                                                                                                                                                                                                                                                                                     TANK
-                                                                                                                                                                                                                                                                                                                                                                     (- WIDTH 100) (- HEIGHT TANK-BOTTOM)
-                                                                                                                                                                                                                                                                                                                                                                     (place-image
-                                                                                                                                                                                                                                                                                                                                                                      FIRE
-                                                                                                                                                                                                                                                                                                                                                                      (- WIDTH 100) (- HEIGHT 300)
-                                                                                                                                                                                                                                                                                                                                                                      (place-image
-                                                                                                                                                                                                                                                                                                                                                                       INVADER
-                                                                                                                                                                                                                                                                                                                                                                       (- WIDTH 100) (- HEIGHT 100)
+(check-expect (render-behaviour (make-game (make-tank (/ WIDTH 2) TANK-Y 1) (make-fire (/ WIDTH 2) (- HEIGHT 60)) (cons (make-invader (- WIDTH 100) (- HEIGHT 200) INVADER-ANGLE-45 ) (cons (make-invader (- WIDTH 200) (- HEIGHT 100)  INVADER-ANGLE-45 ) (cons (make-invader (- WIDTH 150) (- HEIGHT 250)  INVADER-ANGLE-MINUS-45 ) empty))))) (place-image
+                                                                                                                                                                                                                                                                                                                                                  TANK
+                                                                                                                                                                                                                                                                                                                                                  (/ WIDTH 2) (- HEIGHT TANK-BOTTOM)
+                                                                                                                                                                                                                                                                                                                                                  (place-image
+                                                                                                                                                                                                                                                                                                                                                   FIRE
+                                                                                                                                                                                                                                                                                                                                                   (/ WIDTH 2) (- HEIGHT 60)
+                                                                                                                                                                                                                                                                                                                                                   (place-image
+                                                                                                                                                                                                                                                                                                                                                    INVADER
+                                                                                                                                                                                                                                                                                                                                                    (- WIDTH 100) (- HEIGHT 200)
+                                                                                                                                                                                                                                                                                                                                                    (place-image
+                                                                                                                                                                                                                                                                                                                                                     INVADER
+                                                                                                                                                                                                                                                                                                                                                     (- WIDTH 200) (- HEIGHT 100)
+                                                                                                                                                                                                                                                                                                                                                     (place-image
+                                                                                                                                                                                                                                                                                                                                                      INVADER
+                                                                                                                                                                                                                                                                                                                                                      (- WIDTH 150) (- HEIGHT 250)
+                                                                                                                                                                                                                                                                                                                                                      MTS
+                                                                                                                                                                                                                                                                                                                                                      )
+                                                                                                                                                                                                                                                                                                                                                     )
+                                                                                                                                                                                                                                                                                                                                                    ))
+                                                                                                                                                                                                                                                                                                                                                  ))
+(check-expect (render-behaviour (make-game (make-tank (- WIDTH 100) (- HEIGHT TANK-BOTTOM) 1) (make-fire (- WIDTH 100) (- HEIGHT 300)) (cons (make-invader (- WIDTH 100) (- HEIGHT 100) INVADER-ANGLE-45 ) (cons (make-invader (- WIDTH 150) (- HEIGHT 110)  INVADER-ANGLE-45 ) (cons (make-invader (- WIDTH 120) (- HEIGHT 190)  INVADER-ANGLE-MINUS-45 ) empty))))) (place-image
+                                                                                                                                                                                                                                                                                                                                                                       TANK
+                                                                                                                                                                                                                                                                                                                                                                       (- WIDTH 100) (- HEIGHT TANK-BOTTOM)
                                                                                                                                                                                                                                                                                                                                                                        (place-image
-                                                                                                                                                                                                                                                                                                                                                                        INVADER
-                                                                                                                                                                                                                                                                                                                                                                        (- WIDTH 150) (- HEIGHT 110) 
+                                                                                                                                                                                                                                                                                                                                                                        FIRE
+                                                                                                                                                                                                                                                                                                                                                                        (- WIDTH 100) (- HEIGHT 300)
                                                                                                                                                                                                                                                                                                                                                                         (place-image
                                                                                                                                                                                                                                                                                                                                                                          INVADER
-                                                                                                                                                                                                                                                                                                                                                                         (- WIDTH 120) (- HEIGHT 190)
-                                                                                                                                                                                                                                                                                                                                                                         MTS
-                                                                                                                                                                                                                                                                                                                                                                         )
-                                                                                                                                                                                                                                                                                                                                                                        )
-                                                                                                                                                                                                                                                                                                                                                                       ))))
+                                                                                                                                                                                                                                                                                                                                                                         (- WIDTH 100) (- HEIGHT 100)
+                                                                                                                                                                                                                                                                                                                                                                         (place-image
+                                                                                                                                                                                                                                                                                                                                                                          INVADER
+                                                                                                                                                                                                                                                                                                                                                                          (- WIDTH 150) (- HEIGHT 110) 
+                                                                                                                                                                                                                                                                                                                                                                          (place-image
+                                                                                                                                                                                                                                                                                                                                                                           INVADER
+                                                                                                                                                                                                                                                                                                                                                                           (- WIDTH 120) (- HEIGHT 190)
+                                                                                                                                                                                                                                                                                                                                                                           MTS
+                                                                                                                                                                                                                                                                                                                                                                           )
+                                                                                                                                                                                                                                                                                                                                                                          )
+                                                                                                                                                                                                                                                                                                                                                                         ))))
   
 ;(define (render-behaviour g) MTS); stub
 
@@ -327,27 +348,29 @@
 ;(define (render-fire f img) empty-image); stub
 
 (define (render-fire f scene)
-  (place-image FIRE
-               (fire-x f)(fire-y f)
-               scene))
+  (if (empty? f)
+      scene
+      (place-image FIRE
+                   (fire-x f)(fire-y f)
+                   scene)))
 
 
 ;; Tank Image -> Image
 ;; render tank into it's (x,y) position on the (scene returned from render-fire (has FIRE and INVADERS rendered on the MTS))
-(check-expect (render-tank (make-tank (/ WIDTH 2) TANK-Y) MTS) (place-image TANK
-                                                                                 (/ WIDTH 2) TANK-Y
-                                                                                 MTS))
-(check-expect (render-tank (make-tank (- WIDTH  30) TANK-Y) (place-image FIRE
-                                                                                        (- WIDTH  30) (- HEIGHT 80)
-                                                                                        (place-image INVADER
-                                                                                                     (/ WIDTH 2) (/ HEIGHT 2)
-                                                                                                     MTS ))) (place-image TANK
-                                                                                                                          (- WIDTH  30) TANK-Y
-                                                                                                                          (place-image FIRE
-                                                                                                                                       (- WIDTH  30) (- HEIGHT 80)
-                                                                                                                                       (place-image INVADER
-                                                                                                                                                    (/ WIDTH 2) (/ HEIGHT 2)
-                                                                                                                                                    MTS )))); stub
+(check-expect (render-tank (make-tank (/ WIDTH 2) TANK-Y 1) MTS) (place-image TANK
+                                                                              (/ WIDTH 2) TANK-Y
+                                                                              MTS))
+(check-expect (render-tank (make-tank (- WIDTH  30) TANK-Y 1) (place-image FIRE
+                                                                           (- WIDTH  30) (- HEIGHT 80)
+                                                                           (place-image INVADER
+                                                                                        (/ WIDTH 2) (/ HEIGHT 2)
+                                                                                        MTS ))) (place-image TANK
+                                                                                                             (- WIDTH  30) TANK-Y
+                                                                                                             (place-image FIRE
+                                                                                                                          (- WIDTH  30) (- HEIGHT 80)
+                                                                                                                          (place-image INVADER
+                                                                                                                                       (/ WIDTH 2) (/ HEIGHT 2)
+                                                                                                                                       MTS )))); stub
 ;(define (render-tank t scene) MTS); stub
 
 (define (render-tank t scene)
@@ -357,7 +380,7 @@
 
 ;; game -> boolean
 ;; Game over if invader reaches the bottom of the screen, or palyer eliminated all invaders
-(check-expect (end-game (make-game (make-tank 0 TANK-Y) (make-fire 0 0) empty)) true)
+(check-expect (end-game (make-game (make-tank 0 TANK-Y -1) (make-fire 0 0) empty)) true)
 (check-expect (end-game (make-game T0 (make-fire 0 0) (cons (make-invader 0 INVADER-REACHES-BOTTOM INVADER-ANGLE-45) (cons (make-invader 0 (- HEIGHT 100) INVADER-ANGLE-MINUS-45) empty)))) true)
 (check-expect (end-game (make-game T0 (make-fire 0 0) (cons (make-invader 0 0 INVADER-ANGLE-45) (cons (make-invader 0 (- HEIGHT 100) INVADER-ANGLE-MINUS-45) (cons (make-invader (- WIDTH 100) (- HEIGHT 200) INVADER-ANGLE-MINUS-45) empty))))) false)
 ;(define (end-game g) true); stub
@@ -403,5 +426,41 @@
 
 ;; game KeyEvent -> game
 ;; arrow key - tank moves right and left, space bar fire missiles
-;; !!!
-(define (handle-key g ke) GAME-1); stub
+(check-expect (handle-key (make-game (make-tank 0 0  1) FIRE-1 LOI-1)                          "left" ) (make-game (make-tank 0 0 -1) FIRE-1 LOI-1))
+(check-expect (handle-key (make-game (make-tank 0 0 -1) FIRE-1 LOI-1)                          "left" ) (make-game (make-tank 0 0 -1) FIRE-1 LOI-1))
+(check-expect (handle-key (make-game (make-tank (- WIDTH 100) (- HEIGHT 100)  1) FIRE-1 LOI-1) "right") (make-game (make-tank (- WIDTH 100) (- HEIGHT 100)  1) FIRE-1 LOI-1))
+(check-expect (handle-key (make-game (make-tank (- WIDTH 100) (- HEIGHT 100) -1) FIRE-1 LOI-1) "right") (make-game (make-tank (- WIDTH 100) (- HEIGHT 100)  1) FIRE-1 LOI-1))
+(check-expect (handle-key (make-game T0 (make-fire 0 0) LOI-1)                                     " ") (make-game T0 (make-fire 0 0) LOI-1) )
+(check-expect (handle-key (make-game T0  empty          LOI-1)                                     " ") (make-game T0 (make-fire (tank-x T0) FIRE-Y) LOI-1))
+;(define (handle-key g ke) GAME-1); stub
+
+(define (handle-key g ke)
+  (cond [(key=? ke " ")     (fire-missiles g)]
+        [(key=? ke "left")  (make-game (tank-direction (game-t g) "left" ) (game-f g)(game-loi g))]
+        [(key=? ke "right") (make-game (tank-direction (game-t g) "right") (game-f g)(game-loi g))]
+        [else               g]))
+
+
+;; Tank -> Tank
+;; Creates a tank with the right direction
+(check-expect (tank-direction (make-tank 0 0  1)                          "left" ) (make-tank 0 0 -1))
+(check-expect (tank-direction (make-tank 0 0 -1)                          "left" ) (make-tank 0 0 -1))
+(check-expect (tank-direction (make-tank (- WIDTH 100) (- HEIGHT 100)  1) "right") (make-tank (- WIDTH 100) (- HEIGHT 100)  1))
+(check-expect (tank-direction (make-tank (- WIDTH 100) (- HEIGHT 100) -1) "right") (make-tank (- WIDTH 100) (- HEIGHT 100)  1))
+;(define (tank-direction g ke) T0); stub
+ 
+(define (tank-direction t ke)
+  (cond [(string=? ke "left" ) (make-tank (tank-x t) (tank-y   t) -1)]
+        [(string=? ke "right") (make-tank (tank-x t) (tank-y   t)  1)]))
+
+;; Game -> Game
+;; Fire missiles only if there is no fire in the game
+(check-expect (fire-missiles (make-game T0 (make-fire 0 0) LOI-1)) (make-game T0 (make-fire 0 0) LOI-1) )
+(check-expect (fire-missiles (make-game T0  empty          LOI-1)) (make-game T0 (make-fire (tank-x T0) FIRE-Y) LOI-1))
+;(define (fire-missiles g) g);stub
+
+(define (fire-missiles g)
+  (if (empty? (game-f g))
+      (make-game (game-t g) (make-fire (tank-x (game-t g)) FIRE-Y) (game-loi g))
+      g))
+
