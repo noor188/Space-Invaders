@@ -13,9 +13,10 @@
 (define WIDTH  300)
 (define MTS    (empty-scene WIDTH HEIGHT))
 
-(define TANK-x-SPEED 30)
+(define TANK-X-SPEED 1)
 (define TANK-HEIGHT 30)
 (define TANK-BOTTOM 10)
+(define TANK-CENTER 15)
 (define TANK-Y (- HEIGHT TANK-BOTTOM))
 
 
@@ -141,7 +142,7 @@
 ;; Functions:
 
 ;; game -> game
-;; start the world with (main (make-game T1 empty empty))
+;; start the world with (main (make-game T1 FIRE-0 LOI-3))
 ;; 
 (define (main g)
   (big-bang g                      ; game
@@ -152,13 +153,57 @@
 
 ;; game -> game
 ;; produce the next game status -> fire (- FIRE-SPEED), invader positions
-(check-expect (next-frame (make-game (make-tank (/ WIDTH 2) 0 1) (make-fire 100 150) (cons (make-invader 100 150 INVADER-ANGLE-45) empty)))  (make-game (make-tank (/ WIDTH 2) 0 1) (make-fire 100 (- 150 FIRE-SPEED)) (cons (make-invader (+ 100 INVADER-X-SPEED) (+ 150 INVADER-Y-SPEED) INVADER-ANGLE-45 ) empty)))
-(check-expect (next-frame (make-game (make-tank 0 150 -1) (make-fire 50 200) (cons (make-invader 300 3 INVADER-ANGLE-45) empty)))            (make-game (make-tank 0 150 -1)       (make-fire 50  (- 200 FIRE-SPEED)) (cons (make-invader  (- 300 INVADER-X-SPEED) (+ 3 INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45 ) empty)))
+(check-expect (next-frame (make-game (make-tank (/ WIDTH 2)   TANK-Y  1) (make-fire 100 150) (cons (make-invader 100 150 INVADER-ANGLE-45) empty)))(make-game (make-tank (+ (/ WIDTH 2) TANK-X-SPEED) TANK-Y 1) (make-fire 100 (- 150 FIRE-SPEED)) (cons (make-invader (+ 100 INVADER-X-SPEED) (+ 150 INVADER-Y-SPEED) INVADER-ANGLE-45 ) empty)))
+(check-expect (next-frame (make-game (make-tank (- WIDTH 100) TANK-Y -1) (make-fire  50 200) (cons (make-invader 300   3 INVADER-ANGLE-45) empty)))(make-game (make-tank (- (- WIDTH 100) TANK-X-SPEED) TANK-Y -1) (make-fire 50  (- 200 FIRE-SPEED)) (cons (make-invader  (- 300 INVADER-X-SPEED) (+ 3 INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45 ) empty)))
 ;(define (next-frame g) GAME-1); stub
 
 (define (next-frame g)
-  (make-game (game-t g) (update-fire(game-f g))(update-invaders(game-loi g))))
+  (make-game (update-tank(game-t g)) (update-fire(game-f g))(update-invaders(game-loi g))))
 
+;; Tank -> Tank
+;; Produce next tank by updating direction (affects x pos) and y pos
+(check-expect (update-tank (make-tank (/ WIDTH 2)           TANK-Y  1)) (make-tank (+ (/ WIDTH 2) TANK-X-SPEED) TANK-Y  1))
+(check-expect (update-tank (make-tank (/ WIDTH 2)           TANK-Y -1)) (make-tank (- (/ WIDTH 2) TANK-X-SPEED) TANK-Y -1))
+(check-expect (update-tank (make-tank TANK-CENTER           TANK-Y  1)) (make-tank (+ TANK-CENTER TANK-X-SPEED) TANK-Y  1))
+(check-expect (update-tank (make-tank TANK-CENTER           TANK-Y -1)) (make-tank TANK-CENTER                  TANK-Y -1)) ; don't update
+(check-expect (update-tank (make-tank (- WIDTH TANK-CENTER) TANK-Y  1)) (make-tank (- WIDTH TANK-CENTER) TANK-Y  1))        ; don't update
+(check-expect (update-tank (make-tank (- WIDTH TANK-CENTER) TANK-Y -1)) (make-tank (- (- WIDTH TANK-CENTER)TANK-X-SPEED) TANK-Y -1))
+;(define (update-tank t) t); stub
+
+(define (update-tank t)
+  (cond [(and (> (tank-x t) TANK-CENTER)(< (tank-x t) (- WIDTH TANK-CENTER)))   (update-in-bound t)]
+        [(or  (<= (tank-x t) TANK-CENTER)(>= (tank-x t) (- WIDTH TANK-CENTER))) (update-out-of-bound t)]
+        ))
+
+;(tank-x   t)
+;(tank-y   t)
+;(tank-dir t)
+       
+;; Tank -> Tank
+;; update tank by adding/subtracting TANK-X-SPEED to tank x postions depending on the direction sign (Tank-x in of bound)
+(check-expect (update-in-bound (make-tank (- WIDTH 100) TANK-Y  1)) (make-tank (+ (- WIDTH 100) TANK-X-SPEED) TANK-Y   1))
+(check-expect (update-in-bound (make-tank (- WIDTH 100) TANK-Y -1)) (make-tank (- (- WIDTH 100) TANK-X-SPEED) TANK-Y  -1))
+;(define (update-in-bound t) t);stub
+
+(define (update-in-bound t)
+  (if (= (tank-dir t) -1)
+      (make-tank (- (tank-x t) TANK-X-SPEED) (tank-y   t) (tank-dir t))
+      (make-tank (+ (tank-x t) TANK-X-SPEED) (tank-y   t) (tank-dir t))))
+
+;; Tank -> Tank
+;; update tank by adding/subtracting TANK-X-SPEED to tank x postions depending on the direction sign (Tank-x out of bound)
+(check-expect (update-out-of-bound (make-tank TANK-CENTER           TANK-Y -1)) (make-tank TANK-CENTER TANK-Y -1))
+(check-expect (update-out-of-bound (make-tank TANK-CENTER           TANK-Y  1)) (make-tank (+ TANK-CENTER TANK-X-SPEED) TANK-Y +1))
+(check-expect (update-out-of-bound (make-tank (- WIDTH TANK-CENTER) TANK-Y -1)) (make-tank (- (- WIDTH TANK-CENTER) TANK-X-SPEED) TANK-Y -1))
+(check-expect (update-out-of-bound (make-tank (- WIDTH TANK-CENTER) TANK-Y  1)) (make-tank (- WIDTH TANK-CENTER) TANK-Y  1))
+;(define (update-out-of-bound t) t);stub
+
+(define (update-out-of-bound t)
+  (cond [(and (<= (tank-x   t) TANK-CENTER)          (= (tank-dir t) -1)) t]
+        [(and (>= (tank-x   t)(- WIDTH TANK-CENTER)) (= (tank-dir t)  1)) t]
+        [(= (tank-dir t) 1) (make-tank (+ (tank-x t) TANK-X-SPEED) (tank-y   t) (tank-dir t))]
+        [else
+         (make-tank (- (tank-x t) TANK-X-SPEED) (tank-y   t) (tank-dir t))]))
 
 ;; Fire -> Fire
 ;; Produce the next fire (updates postion, remove excess fire)
