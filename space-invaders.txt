@@ -51,7 +51,6 @@
 
 
 
-
 ;; =================
 ;; Data definitions:
 
@@ -91,7 +90,7 @@
 (define FIRE-1 (make-fire 0 0))
 (define FIRE-2 (make-fire (/ WIDTH 2) (/ HEIGHT 2)))
 (define FIRE-3 (make-fire WIDTH HEIGHT))
-
+#;
 (define (fn-for-fire f)
   (cond [(empty? f) (...)]
         [else
@@ -208,7 +207,7 @@
 ;; Fire -> Fire
 ;; Produce the next fire (updates postion, remove excess fire)
 (check-expect (update-fire (make-fire 0 0)) (make-fire 0 (- 0 FIRE-SPEED)))
-(check-expect (update-fire (make-fire 0 FIRE-FALL-OFF)) (make-fire 0 (- FIRE-FALL-OFF FIRE-SPEED)))
+(check-expect (update-fire (make-fire 0 FIRE-FALL-OFF))  empty)
 (check-expect (update-fire (make-fire 0 (- 1 FIRE-FALL-OFF))) (make-fire 0 (- 1 FIRE-FALL-OFF FIRE-SPEED)))
 (check-expect (update-fire (make-fire (/ WIDTH 2) (/ HEIGHT 2))) (make-fire (/ WIDTH 2) (- (/ HEIGHT 2) FIRE-SPEED)))
 ;(define (update-fire lof) lof); stub
@@ -223,28 +222,24 @@
 ;(define (tick-fire f) f); stub
 
 (define (tick-fire f)
-  ( if (empty? f)
+  ( if (or (empty? f) (offscreen-fire? f))
        empty
        (make-fire (fire-x f) (- (fire-y f) FIRE-SPEED))))
 
-;; Fire -> Fire
-;; Fire if fire within screen bounds (0-HEIGHT), ow empty
-(check-expect (onscreen-fire? (make-fire 0 FIRE-FALL-OFF))       false)
-(check-expect (onscreen-fire? (make-fire 0 (+ FIRE-FALL-OFF 1))) true)
-(check-expect (onscreen-fire? (make-fire 0 (- FIRE-FALL-OFF 1))) false)
-(check-expect (onscreen-fire? (make-fire 0 (/ HEIGHT 2))) true)
-;(define (onscreen-fire? f) true); stub
+;; Fire -> Boolean
+;; True if fire is out of bound (fire-y >= FIRE-FALL-OFF)
+(check-expect (offscreen-fire? empty) false)
+(check-expect (offscreen-fire? (make-fire (- WIDTH 100)(- FIRE-FALL-OFF 10))) true)
+(check-expect (offscreen-fire? (make-fire (- WIDTH 100) FIRE-FALL-OFF)) true)
+(check-expect (offscreen-fire? (make-fire (- WIDTH 100)(+ FIRE-FALL-OFF 10))) false)
+;(define (offscreen-fire? f) true); stub
 
-(define (onscreen-fire? f)
-  (> (fire-y f) FIRE-FALL-OFF))
-
-
-#; 
-(define (update-fire lof)
-  (cond [(empty? lof) empty]
-        [ else
-          (cons (update-x-fire(first lof))     ; Fire
-                (update-fire(rest  lof)))]))  ; ListOfFire
+(define (offscreen-fire? f)
+  (cond [(empty? f) false]
+        [else
+         (if (<= (fire-y f) FIRE-FALL-OFF)
+             true
+             false)]))
 
 ;; ListOfinvader -> ListOfInvder
 ;; update the invader position (x, y, angle)
