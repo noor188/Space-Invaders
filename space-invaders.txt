@@ -123,6 +123,20 @@
           (... (fn-for-invader(first loi))      ; Invader
                (fn-for-loi(rest loi)))]))       ; ListOfInvader
 
+(define-struct invader-range (min-x max-x min-y max-y))
+;; Invader-Range is (make-invader-range Number Number Number Number)
+;; interp. an invader range [min-x, max-x], [min-y, max-y]
+
+(define INVADER-RANGE-1 (make-invader-range (- WIDTH 100) (- WIDTH 110) (- HEIGHT 100) (- HEIGHT 130)))
+(define INVADER-RANGE-2 (make-invader-range (- WIDTH  90) (- WIDTH 100) (- HEIGHT  70) (- HEIGHT 100)))
+(define INVADER-RANGE-3 (make-invader-range (- WIDTH 150) (- WIDTH 180) (- HEIGHT 200) (- HEIGHT 210)))
+#;
+(define (fn-for-invader-range ir)
+  (... (invader-range-min-x ir)
+       (invader-range-max-x ir)
+       (invader-range-min-y ir)
+       (invader-range-max-y ir)))
+
 (define-struct game (t f loi))
 ;; Game is (make-game game)
 ;; interp. a game with
@@ -157,7 +171,7 @@
 ;(define (next-frame g) GAME-1); stub
 
 (define (next-frame g)
-  (make-game (update-tank(game-t g)) (update-fire(game-f g))(update-invaders(game-loi g))))
+  (make-game (update-tank(game-t g)) (update-fire(game-f g))(update-invaders g)))
 
 ;; Tank -> Tank
 ;; Produce next tank by updating direction (affects x pos) and y pos
@@ -241,29 +255,63 @@
              true
              false)]))
 
-;; ListOfinvader -> ListOfInvder
+;; Game -> ListOfInvader
 ;; update the invader position (x, y, angle)
-(check-expect (update-invaders empty) empty)
-(check-expect (update-invaders (cons (make-invader 0 0 INVADER-ANGLE-45) empty)) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty)) ; 45 45
-(check-expect (update-invaders (cons (make-invader (- WIDTH 100) (- HEIGHT 100) INVADER-ANGLE-MINUS-45) empty)) (cons (make-invader (- (- WIDTH 100) INVADER-X-SPEED) (+ (- HEIGHT 100) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty)) ; -45 -45
+(check-expect (update-invaders (make-game T0 empty empty)) empty)
+(check-expect (update-invaders (make-game T0 empty (cons (make-invader 0 0 INVADER-ANGLE-45) empty))) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty)) ; 45 45
+(check-expect (update-invaders (make-game T0 (make-fire 100 200) (cons (make-invader 0 0 INVADER-ANGLE-45) empty))) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty)) ; 45 45
+(check-expect (update-invaders (make-game T0 (make-fire 10 3) (cons (make-invader 0 0 INVADER-ANGLE-45) empty))) empty) ; 45 45
+(check-expect (update-invaders (make-game T0 (make-fire  4 6) (cons (make-invader (- WIDTH 100) (- HEIGHT 100) INVADER-ANGLE-MINUS-45) empty))) (cons (make-invader (- (- WIDTH 100) INVADER-X-SPEED) (+ (- HEIGHT 100) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty)) ; -45 -45
+(check-expect (update-invaders (make-game T0 (make-fire  (- WIDTH 105) (- HEIGHT 105)) (cons (make-invader (- WIDTH 100) (- HEIGHT 100) INVADER-ANGLE-MINUS-45) empty))) empty) ; -45 -45
 
-(check-expect (update-invaders (cons (make-invader (- WIDTH 30) (- HEIGHT 40) INVADER-ANGLE-45) (cons (make-invader 0 0 INVADER-ANGLE-45) empty))) (cons (make-invader (+ (- WIDTH 30) INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-45) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty))); 45 45 -> 45 45
-(check-expect (update-invaders (cons (make-invader (- WIDTH 30) (- HEIGHT 40) INVADER-ANGLE-MINUS-45) (cons (make-invader (- WIDTH 10) (- HEIGHT 10) INVADER-ANGLE-MINUS-45) empty))) (cons (make-invader (- (- WIDTH 30) INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) (cons (make-invader (- (- WIDTH 10)  INVADER-X-SPEED) (+ (- HEIGHT 10) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty))); -45 -45 -> -45 -45
-(check-expect (update-invaders (cons (make-invader INVADER-BOUNCE-RIGHT (- HEIGHT 40) INVADER-ANGLE-45) (cons (make-invader 0 0 INVADER-ANGLE-45) empty))) (cons (make-invader (- INVADER-BOUNCE-RIGHT INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty))); 45 -45 -> -45 45
-(check-expect (update-invaders (cons (make-invader INVADER-BOUNCE-LEFT  (- HEIGHT 40)  INVADER-ANGLE-MINUS-45) (cons (make-invader 0 0 INVADER-ANGLE-45) empty))) (cons (make-invader (+ INVADER-BOUNCE-LEFT INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-45) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty))); -45 45 -> 45 -45
+(check-expect (update-invaders (make-game T0 (make-fire  100 300) (cons (make-invader (- WIDTH 30) (- HEIGHT 40) INVADER-ANGLE-45) (cons (make-invader 0 0 INVADER-ANGLE-45) empty)))) (cons (make-invader (+ (- WIDTH 30) INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-45) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty))); 45 45 -> 45 45
+(check-expect (update-invaders (make-game T0 (make-fire (- WIDTH 24) (- HEIGHT 43)) (cons (make-invader (- WIDTH 30) (- HEIGHT 40) INVADER-ANGLE-45) (cons (make-invader 0 0 INVADER-ANGLE-45) empty)))) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty)); 45 45 -> 45 45
+(check-expect (update-invaders (make-game T0 (make-fire  4 6) (cons (make-invader (- WIDTH 30) (- HEIGHT 40) INVADER-ANGLE-MINUS-45) (cons (make-invader (- WIDTH 10) (- HEIGHT 10) INVADER-ANGLE-MINUS-45) empty)))) (cons (make-invader (- (- WIDTH 30) INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) (cons (make-invader (- (- WIDTH 10)  INVADER-X-SPEED) (+ (- HEIGHT 10) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty))); -45 -45 -> -45 -45
+(check-expect (update-invaders (make-game T0 (make-fire  (- WIDTH 14) (- HEIGHT 8)) (cons (make-invader (- WIDTH 30) (- HEIGHT 40) INVADER-ANGLE-MINUS-45) (cons (make-invader (- WIDTH 10) (- HEIGHT 10) INVADER-ANGLE-MINUS-45) empty)))) (cons (make-invader (- (- WIDTH 30) INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty)); -45 -45 -> -45 -45
+(check-expect (update-invaders (make-game T0 (make-fire  100 100) (cons (make-invader INVADER-BOUNCE-RIGHT (- HEIGHT 40) INVADER-ANGLE-45) (cons (make-invader 0 0 INVADER-ANGLE-45) empty)))) (cons (make-invader (- INVADER-BOUNCE-RIGHT INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty))); 45 -45 -> -45 45
+(check-expect (update-invaders (make-game T0 (make-fire  (- INVADER-BOUNCE-RIGHT 7) (- HEIGHT 38)) (cons (make-invader INVADER-BOUNCE-RIGHT (- HEIGHT 40) INVADER-ANGLE-45) (cons (make-invader 0 0 INVADER-ANGLE-45) empty)))) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty)); 45 -45 -> -45 45
+(check-expect (update-invaders (make-game T0 (make-fire  100 300) (cons (make-invader INVADER-BOUNCE-LEFT  (- HEIGHT 40)  INVADER-ANGLE-MINUS-45) (cons (make-invader 0 0 INVADER-ANGLE-45) empty)))) (cons (make-invader (+ INVADER-BOUNCE-LEFT INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-45) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty))); -45 45 -> 45 -45
+(check-expect (update-invaders (make-game T0 (make-fire  10 -4) (cons (make-invader INVADER-BOUNCE-LEFT  (- HEIGHT 40)  INVADER-ANGLE-MINUS-45) (cons (make-invader 0 0 INVADER-ANGLE-45) empty)))) (cons (make-invader (+ INVADER-BOUNCE-LEFT INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-45) empty)); -45 45 -> 45 -45
 
-(check-expect (update-invaders (cons (make-invader (- WIDTH 30) (- HEIGHT 40) INVADER-ANGLE-MINUS-45) (cons (make-invader INVADER-BOUNCE-LEFT (- HEIGHT 10) INVADER-ANGLE-MINUS-45) empty))) (cons (make-invader (- (- WIDTH 30) INVADER-X-SPEED) (+ (- HEIGHT 40)  INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) (cons (make-invader (+ INVADER-BOUNCE-LEFT INVADER-X-SPEED) (+ (- HEIGHT 10) INVADER-Y-SPEED) INVADER-ANGLE-45) empty))); -45 -45 -> -45 45
-(check-expect (update-invaders (cons (make-invader (- WIDTH 30) (- HEIGHT 40) INVADER-ANGLE-45      ) (cons (make-invader INVADER-BOUNCE-RIGHT(- HEIGHT 10) INVADER-ANGLE-45) empty))) (cons (make-invader (+ (- WIDTH 30) INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-45)       (cons (make-invader (- INVADER-BOUNCE-RIGHT INVADER-X-SPEED) (+ (- HEIGHT 10) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty)));  45 45 -> 45 -45
-(check-expect (update-invaders (cons (make-invader INVADER-BOUNCE-RIGHT (- HEIGHT 40) INVADER-ANGLE-45) (cons (make-invader (- WIDTH 30)(- HEIGHT 40) INVADER-ANGLE-45) empty))) (cons (make-invader (- INVADER-BOUNCE-RIGHT INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) (cons (make-invader (+ (- WIDTH 30) INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-45) empty))); 45 45 -> -45 45
-(check-expect (update-invaders (cons (make-invader INVADER-BOUNCE-LEFT (- HEIGHT 40) INVADER-ANGLE-MINUS-45) (cons (make-invader (- WIDTH 30) (- HEIGHT 40) INVADER-ANGLE-MINUS-45) empty))) (cons (make-invader (+ INVADER-BOUNCE-LEFT INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-45) (cons (make-invader (- (- WIDTH 30)INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty))); -45 -45 -> 45 -45
+(check-expect (update-invaders (make-game T0 (make-fire  100 4) (cons (make-invader (- WIDTH 30) (- HEIGHT 40) INVADER-ANGLE-MINUS-45) (cons (make-invader INVADER-BOUNCE-LEFT (- HEIGHT 10) INVADER-ANGLE-MINUS-45) empty)))) (cons (make-invader (- (- WIDTH 30) INVADER-X-SPEED) (+ (- HEIGHT 40)  INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) (cons (make-invader (+ INVADER-BOUNCE-LEFT INVADER-X-SPEED) (+ (- HEIGHT 10) INVADER-Y-SPEED) INVADER-ANGLE-45) empty))); -45 -45 -> -45 45
+(check-expect (update-invaders (make-game T0 (make-fire  (- INVADER-BOUNCE-LEFT 6) (- HEIGHT 8)) (cons (make-invader (- WIDTH 30) (- HEIGHT 40) INVADER-ANGLE-MINUS-45) (cons (make-invader INVADER-BOUNCE-LEFT (- HEIGHT 10) INVADER-ANGLE-MINUS-45) empty)))) (cons (make-invader (- (- WIDTH 30) INVADER-X-SPEED) (+ (- HEIGHT 40)  INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty)); -45 -45 -> -45 45
+(check-expect (update-invaders (make-game T0 (make-fire  5 100) (cons (make-invader (- WIDTH 30) (- HEIGHT 40) INVADER-ANGLE-45      ) (cons (make-invader INVADER-BOUNCE-RIGHT (- HEIGHT 10) INVADER-ANGLE-45) empty)))) (cons (make-invader (+ (- WIDTH 30) INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-45)       (cons (make-invader (- INVADER-BOUNCE-RIGHT INVADER-X-SPEED) (+ (- HEIGHT 10) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty)));  45 45 -> 45 -45
+(check-expect (update-invaders (make-game T0 (make-fire (- WIDTH 17)(- HEIGHT 41)) (cons (make-invader (- WIDTH 30) (- HEIGHT 40) INVADER-ANGLE-45) (cons (make-invader INVADER-BOUNCE-RIGHT(- HEIGHT 10) INVADER-ANGLE-45) empty)))) (cons (make-invader (- INVADER-BOUNCE-RIGHT INVADER-X-SPEED) (+ (- HEIGHT 10) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty));  45 45 -> 45 -45
+(check-expect (update-invaders (make-game T0 (make-fire  100 100) (cons (make-invader INVADER-BOUNCE-RIGHT (- HEIGHT 40) INVADER-ANGLE-45) (cons (make-invader (- WIDTH 30)(- HEIGHT 40) INVADER-ANGLE-45) empty)))) (cons (make-invader (- INVADER-BOUNCE-RIGHT INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) (cons (make-invader (+ (- WIDTH 30) INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-45) empty))); 45 45 -> -45 45
+(check-expect (update-invaders (make-game T0 (make-fire (- WIDTH 41)(- HEIGHT 36)) (cons (make-invader INVADER-BOUNCE-RIGHT (- HEIGHT 40) INVADER-ANGLE-45) (cons (make-invader (- WIDTH 30)(- HEIGHT 40) INVADER-ANGLE-45) empty)))) (cons (make-invader (- INVADER-BOUNCE-RIGHT INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty)); 45 45 -> -45 45
+(check-expect (update-invaders (make-game T0 (make-fire  100 100) (cons (make-invader INVADER-BOUNCE-LEFT (- HEIGHT 40) INVADER-ANGLE-MINUS-45) (cons (make-invader (- WIDTH 30) (- HEIGHT 40) INVADER-ANGLE-MINUS-45) empty)))) (cons (make-invader (+ INVADER-BOUNCE-LEFT INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-45) (cons (make-invader (- (- WIDTH 30)INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty))); -45 -45 -> 45 -45
+(check-expect (update-invaders (make-game T0 (make-fire (- INVADER-BOUNCE-LEFT 10) (- HEIGHT 37)) (cons (make-invader INVADER-BOUNCE-LEFT (- HEIGHT 40) INVADER-ANGLE-MINUS-45) (cons (make-invader (- WIDTH 30) (- HEIGHT 40) INVADER-ANGLE-MINUS-45) empty)))) (cons (make-invader (- (- WIDTH 30)INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45) empty)); -45 -45 -> 45 -45
 
-;(define (update-invaders loi) loi); stub
 
-(define (update-invaders loi)
-  (cond [(empty? loi) empty]
-        [ else
-          (cons(update-invader(first loi))          ; Invader
-               (update-invaders(rest loi)))]))       ; ListOfInvader
+;(define (update-invaders g) empty); stub
+
+(define (update-invaders g)
+  (update-loi-list (game-f g)(game-loi g)))
+
+;; Fire ListOfInvader -> ListOfInvader
+;; Return the updated list of invaders (x,y, angle), if (x,y) pos of fire is within the range of an invader, remove it
+(check-expect (update-loi-list empty empty) empty)
+(check-expect (update-loi-list empty (cons (make-invader 0 0 INVADER-ANGLE-45) empty)) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty)) ; fire = empty
+(check-expect (update-loi-list (make-fire  100 4) empty) empty) ; loi = empty
+(check-expect (update-loi-list (make-fire 10 3) (cons (make-invader 0 0 INVADER-ANGLE-45) empty)) empty) ; fire = invader
+(check-expect (update-loi-list (make-fire 100 200) (cons (make-invader 0 0 INVADER-ANGLE-45) empty)) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty)) ; fire != invader
+(check-expect (update-loi-list (make-fire  100 300) (cons (make-invader (- WIDTH 30) (- HEIGHT 40) INVADER-ANGLE-45) (cons (make-invader 0 0 INVADER-ANGLE-45) empty))) (cons (make-invader (+ (- WIDTH 30) INVADER-X-SPEED) (+ (- HEIGHT 40) INVADER-Y-SPEED) INVADER-ANGLE-45) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty))) ; fire != invader
+(check-expect (update-loi-list (make-fire (- WIDTH 24) (- HEIGHT 43)) (cons (make-invader (- WIDTH 30) (- HEIGHT 40) INVADER-ANGLE-45) (cons (make-invader 0 0 INVADER-ANGLE-45) empty))) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty)) ; fire != invader
+
+;(define (update-loi-list f loi) loi); stub
+
+(define (update-loi-list f loi)
+  (cond [(empty? loi) empty]        
+        [else
+         (if (remove-invader? (first loi) f)
+             (update-loi-list f (rest loi))
+             (cons (update-invader(first loi))
+                   (update-loi-list f (rest loi))))]))
+
+;; Invader Fire -> Boolean
+;; True if (x,y) pos of fire is within invader range
+;; !!!
+(define (remove-invader? i f) true); stub
 
 ;; Invader -> Invader
 ;; update invader x,y,angle values -> INVADER-X-SPEED, INVADER-Y-SPEED, INVADER-ANGLE-45 or INVADER-ANGLE-MINUS-45
