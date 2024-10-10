@@ -166,7 +166,7 @@
 
 ;; game -> game
 ;; produce the next game status -> fire (- FIRE-SPEED), invader positions
-(check-expect (next-frame (make-game (make-tank (/ WIDTH 2)   TANK-Y  1) (make-fire 100 150) (cons (make-invader 100 150 INVADER-ANGLE-45) empty)))(make-game (make-tank (+ (/ WIDTH 2) TANK-X-SPEED) TANK-Y 1) (make-fire 100 (- 150 FIRE-SPEED)) (cons (make-invader (+ 100 INVADER-X-SPEED) (+ 150 INVADER-Y-SPEED) INVADER-ANGLE-45 ) empty)))
+(check-expect (next-frame (make-game (make-tank (/ WIDTH 2)   TANK-Y  1) (make-fire 100 150) (cons (make-invader 100 150 INVADER-ANGLE-45) empty)))(make-game (make-tank (+ (/ WIDTH 2) TANK-X-SPEED) TANK-Y 1) (make-fire 100 (- 150 FIRE-SPEED)) empty))
 (check-expect (next-frame (make-game (make-tank (- WIDTH 100) TANK-Y -1) (make-fire  50 200) (cons (make-invader 300   3 INVADER-ANGLE-45) empty)))(make-game (make-tank (- (- WIDTH 100) TANK-X-SPEED) TANK-Y -1) (make-fire 50  (- 200 FIRE-SPEED)) (cons (make-invader  (- 300 INVADER-X-SPEED) (+ 3 INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45 ) empty)))
 ;(define (next-frame g) GAME-1); stub
 
@@ -290,7 +290,6 @@
 
 ;; Fire ListOfInvader -> ListOfInvader
 ;; Return the updated list of invaders (x,y, angle), if (x,y) pos of fire is within the range of an invader, remove it
-(check-expect (update-loi-list empty empty) empty)
 (check-expect (update-loi-list empty (cons (make-invader 0 0 INVADER-ANGLE-45) empty)) (cons (make-invader (+ 0 INVADER-X-SPEED) (+ 0 INVADER-Y-SPEED) INVADER-ANGLE-45) empty)) ; fire = empty
 (check-expect (update-loi-list (make-fire  100 4) empty) empty) ; loi = empty
 (check-expect (update-loi-list (make-fire 10 3) (cons (make-invader 0 0 INVADER-ANGLE-45) empty)) empty) ; fire = invader
@@ -310,8 +309,73 @@
 
 ;; Invader Fire -> Boolean
 ;; True if (x,y) pos of fire is within invader range
-;; !!!
-(define (remove-invader? i f) true); stub
+(check-expect (remove-invader? (make-invader 0 0 INVADER-ANGLE-45) empty) false) ; bc
+(check-expect (remove-invader? (make-invader 0 0 INVADER-ANGLE-45) (make-fire 10 3)) true)     ; = 
+(check-expect (remove-invader? (make-invader 0 0 INVADER-ANGLE-45) (make-fire 100 200)) false) ; !=
+;(define (remove-invader? i f) true); stub
+
+(define (remove-invader? i f)
+  (cond [(empty? f) false]
+        [else
+         (if (fire-with-in-range i f)
+              true
+              false)]))
+
+;; Invader Fire -> Boolean
+;; Produce True if fire x,y pos is within invader range
+;; !!! (and (fire-x-in-invader i f) (fire-y-in-invader i f))
+(check-expect (fire-with-in-range (make-invader 0 0 INVADER-ANGLE-45) empty) false) ; bc
+(check-expect (fire-with-in-range (make-invader 0 0 INVADER-ANGLE-45) (make-fire 10 3)) true)     ; = 
+(check-expect (fire-with-in-range (make-invader 0 0 INVADER-ANGLE-45) (make-fire 100 200)) false) ; !=
+;(define (fire-with-in-range i f ) true)
+
+(define (fire-with-in-range i f)
+  (and (fire-x-in-invader (find-invader-range i) f) (fire-y-in-invader (find-invader-range i) f)))
+
+;; Invader -> Invader-range
+;; produce the invader range in 2D space
+(check-expect (find-invader-range (make-invader (/ WIDTH 2) (/ HEIGHT 2) INVADER-ANGLE-MINUS-45)) (make-invader-range (- (/ WIDTH 2) 15) (+ (/ WIDTH 2) 15) (- (/ HEIGHT 2) 10) (+ (/ HEIGHT 2) 10)))
+(check-expect (find-invader-range (make-invader (- WIDTH 20)(- HEIGHT 40) INVADER-ANGLE-MINUS-45)) (make-invader-range (- (- WIDTH 20) 15) (+ (- WIDTH 20) 15) (- (- HEIGHT 40) 10) (+ (- HEIGHT 40) 10)))
+;(define (find-invader-range i) INVADER-RANGE-1); stub
+
+(define (find-invader-range i)
+  (make-invader-range (-(invader-x i) 15)(+(invader-x i) 15) (-(invader-y i)10) (+(invader-y i)10)))
+
+
+;; Invader-Range Fire -> Boolean
+;; Produce true if fire x pos is within invader x range
+(check-expect (fire-x-in-invader (find-invader-range(make-invader 0 0 INVADER-ANGLE-45)) empty) false) ; bc
+(check-expect (fire-x-in-invader (find-invader-range(make-invader 0 0 INVADER-ANGLE-45)) (make-fire 10 3)) true)     ; = 
+(check-expect (fire-x-in-invader (find-invader-range(make-invader 0 0 INVADER-ANGLE-45)) (make-fire 100 200)) false) ; !=
+;(define (fire-x-in-invader ir f) true); stub
+
+(define (fire-x-in-invader range f)
+  (cond [(empty? f) false]
+        [else
+         (if (and (>= (fire-x f) (invader-range-min-x range))
+                  (<= (fire-x f) (invader-range-max-x range)))
+                  true
+                  false             
+              )]))
+
+
+;; Invader-Range Fire -> Boolean
+;; Produce true if fire y pos is within invader y range
+(check-expect (fire-y-in-invader (find-invader-range(make-invader 0 0 INVADER-ANGLE-45)) empty) false) ; bc
+(check-expect (fire-y-in-invader (find-invader-range(make-invader 0 0 INVADER-ANGLE-45)) (make-fire 10 3)) true)     ; = 
+(check-expect (fire-y-in-invader (find-invader-range(make-invader 0 0 INVADER-ANGLE-45)) (make-fire 100 200)) false) ; !=
+;(define (fire-y-in-invader range f) true); stub
+
+(define (fire-y-in-invader range f)
+  (cond [(empty? f) false]
+        [else
+         (if (and (>= (fire-y f) (invader-range-min-y range))
+                  (<= (fire-y f) (invader-range-max-y range)))
+                  true
+                  false             
+              )]))
+
+
 
 ;; Invader -> Invader
 ;; update invader x,y,angle values -> INVADER-X-SPEED, INVADER-Y-SPEED, INVADER-ANGLE-45 or INVADER-ANGLE-MINUS-45
