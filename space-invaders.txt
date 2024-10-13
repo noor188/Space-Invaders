@@ -29,7 +29,7 @@
 (define INVADER-BOUNCE-LEFT  INVADER-X-BOUNCE)
 (define INVADER-REACHES-BOTTOM (- HEIGHT INVADER-X-BOUNCE))
 
-(define FIRE-SPEED 5)
+(define FIRE-SPEED 6)
 
 (define TANK (above (rectangle  5 10  "solid" "black")
                     (rectangle 20  5  "solid" "black")
@@ -56,13 +56,17 @@
 
 ;; Direction is one of:
 ;; -  1
+;; -  0
 ;; - -1
 ;; interp. the direction of an object,
 ;;      1 : to the right
+;;      0 : don't move
 ;;     -1 : to the left
+
 #;
 (define (fn-for-direction d)
-  (cond [(= d 1 ) (...)]
+  (cond [(= d  1) (...)]
+        [(= d  0) (...)]
         [(= d -1) (...)]))
 
 (define-struct tank (x y dir))
@@ -72,6 +76,7 @@
 (define T0 (make-tank 0 TANK-Y 1))                    ; left edge
 (define T1 (make-tank (/ WIDTH 2) TANK-Y -1)) ; middle
 (define T2 (make-tank WIDTH TANK-Y 1))           ; right edge
+(define T3 (make-tank (/ WIDTH 2) TANK-Y 0))           ; right edge
 #;
 (define (fn-for-tank t)
   (... (tank-x   t)
@@ -104,6 +109,8 @@
 (define INVADER-1 (make-invader 0 0 INVADER-ANGLE-45))
 (define INVADER-2 (make-invader (/ HEIGHT 2) (/ WIDTH 2) INVADER-ANGLE-MINUS-45))
 (define INVADER-3 (make-invader HEIGHT WIDTH INVADER-ANGLE-45))
+(define INVADER-4 (make-invader (/ WIDTH 2) 0 INVADER-ANGLE-45))
+(define INVADER-5 (make-invader (/ WIDTH 2) 0 INVADER-ANGLE-MINUS-45))
 #;
 (define (fn-for-invader i)
   (... (invader-x i)(invader-y i)(invader-angle i)))
@@ -116,6 +123,8 @@
 (define LOI-1 empty)
 (define LOI-2 (cons INVADER-1 empty))
 (define LOI-3 (cons INVADER-2 (cons INVADER-1 empty)))
+(define LOI-4 (cons INVADER-2 (cons INVADER-1 (cons INVADER-3 empty))))
+(define LOI-5 (cons INVADER-2 (cons INVADER-1 (cons INVADER-4 (cons INVADER-5 empty)))))
 #;
 (define (fn-for-loi loi)
   (cond [(empty? loi) (...)]
@@ -155,7 +164,7 @@
 ;; Functions:
 
 ;; game -> game
-;; start the world with (main (make-game T1 FIRE-0 LOI-3))
+;; start the world with (main (make-game T3 FIRE-0 LOI-5))
 ;; 
 (define (main g)
   (big-bang g                      ; game
@@ -166,6 +175,7 @@
 
 ;; game -> game
 ;; produce the next game status -> fire (- FIRE-SPEED), invader positions
+(check-expect (next-frame (make-game (make-tank (/ WIDTH 2)   TANK-Y  0) (make-fire 100 150) (cons (make-invader 100 150 INVADER-ANGLE-45) empty)))(make-game (make-tank (/ WIDTH 2)           TANK-Y  0) (make-fire 100 (- 150 FIRE-SPEED)) empty))
 (check-expect (next-frame (make-game (make-tank (/ WIDTH 2)   TANK-Y  1) (make-fire 100 150) (cons (make-invader 100 150 INVADER-ANGLE-45) empty)))(make-game (make-tank (+ (/ WIDTH 2) TANK-X-SPEED) TANK-Y 1) (make-fire 100 (- 150 FIRE-SPEED)) empty))
 (check-expect (next-frame (make-game (make-tank (- WIDTH 100) TANK-Y -1) (make-fire  50 200) (cons (make-invader 300   3 INVADER-ANGLE-45) empty)))(make-game (make-tank (- (- WIDTH 100) TANK-X-SPEED) TANK-Y -1) (make-fire 50  (- 200 FIRE-SPEED)) (cons (make-invader  (- 300 INVADER-X-SPEED) (+ 3 INVADER-Y-SPEED) INVADER-ANGLE-MINUS-45 ) empty)))
 ;(define (next-frame g) GAME-1); stub
@@ -175,6 +185,7 @@
 
 ;; Tank -> Tank
 ;; Produce next tank by updating direction (affects x pos) and y pos
+(check-expect (update-tank (make-tank (/ WIDTH 2)           TANK-Y  0)) (make-tank (/ WIDTH 2)           TANK-Y  0))
 (check-expect (update-tank (make-tank (/ WIDTH 2)           TANK-Y  1)) (make-tank (+ (/ WIDTH 2) TANK-X-SPEED) TANK-Y  1))
 (check-expect (update-tank (make-tank (/ WIDTH 2)           TANK-Y -1)) (make-tank (- (/ WIDTH 2) TANK-X-SPEED) TANK-Y -1))
 (check-expect (update-tank (make-tank TANK-CENTER           TANK-Y  1)) (make-tank (+ TANK-CENTER TANK-X-SPEED) TANK-Y  1))
@@ -184,7 +195,8 @@
 ;(define (update-tank t) t); stub
 
 (define (update-tank t)
-  (cond [(and (> (tank-x t) TANK-CENTER)(< (tank-x t) (- WIDTH TANK-CENTER)))   (update-in-bound t)]
+  (cond [(= (tank-dir t) 0) t]
+        [(and (> (tank-x t) TANK-CENTER)(< (tank-x t) (- WIDTH TANK-CENTER)))   (update-in-bound t)]
         [(or  (<= (tank-x t) TANK-CENTER)(>= (tank-x t) (- WIDTH TANK-CENTER))) (update-out-of-bound t)]
         ))
 
@@ -318,8 +330,8 @@
   (cond [(empty? f) false]
         [else
          (if (fire-with-in-range i f)
-              true
-              false)]))
+             true
+             false)]))
 
 ;; Invader Fire -> Boolean
 ;; Produce True if fire x,y pos is within invader range
@@ -354,9 +366,9 @@
         [else
          (if (and (>= (fire-x f) (invader-range-min-x range))
                   (<= (fire-x f) (invader-range-max-x range)))
-                  true
-                  false             
-              )]))
+             true
+             false             
+             )]))
 
 
 ;; Invader-Range Fire -> Boolean
@@ -371,9 +383,9 @@
         [else
          (if (and (>= (fire-y f) (invader-range-min-y range))
                   (<= (fire-y f) (invader-range-max-y range)))
-                  true
-                  false             
-              )]))
+             true
+             false             
+             )]))
 
 
 
