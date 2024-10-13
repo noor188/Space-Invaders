@@ -12,6 +12,6 @@ This Space Invaders game have the following behaviour:
 
 -------------------------------------------------------------------------------------------
 
-# Game 
+# What the game looks like during play:
 ![](https://github.com/noor188/Space-Invaders/blob/main/img/space-invader.png)
    
