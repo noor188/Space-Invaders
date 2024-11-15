@@ -1,6 +1,9 @@
 # Space-Invaders
 The design of the classic arcade game space invaders
 
+# Learning goal:
+learned a systematic programming method rather than a programming language. This practical approach helped me channel my creativity so that I can program well in any language.
+
 # Design
 
 This Space Invaders game have the following behaviour:
